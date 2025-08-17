@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guess the Word Game</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom table styling for better presentation */
+        #alphabet-table th, #alphabet-table td, 
+        #guess-table-1 th, #guess-table-1 td,
+        #guess-table-2 th, #guess-table-2 td {
+            padding: 0.5rem;
+            text-align: center;
+            font-size: 1.25rem;
+        }
+        #alphabet-table th, #guess-table-1 th, #guess-table-2 th {
+            font-weight: bold;
+            color: #4a5568;
+            background-color: #e2e8f0;
+        }
+
+        /* Clickable headers and selected state */
+        .clickable-header {
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+        .clickable-header:hover {
+            background-color: #cbd5e0;
+        }
+        .selected-header {
+            background-color: #63b3ed; /* A light blue color to indicate selection */
+            color: white;
+            transform: scale(1.05);
+        }
+
+        /* Modal styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background-color: #ffffff;
+            padding: 2rem;
+            border-radius: 1rem;
+            text-align: center;
+            position: relative;
+            max-width: 90%;
+            width: 400px;
+        }
+        .modal-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            font-size: 1.5rem;
+            font-weight: bold;
+            cursor: pointer;
+            color: #a0aec0;
+            transition: color 0.2s;
+        }
+        .modal-close:hover {
+            color: #e53e3e;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 flex items-center justify-center min-h-screen p-4">
+    <div id="game-container" class="bg-white p-8 rounded-xl shadow-2xl max-w-lg w-full text-center">
+        <h1 class="text-3xl font-extrabold text-gray-800 mb-2">Guess The Word Game</h1>
+
+        <!-- Step 1: Input number of letters -->
+        <div id="setup-step" class="mb-6">
+            <label for="num-letters" class="block text-gray-700 font-semibold mb-2">
+                How many letters will the secret word have?
+            </label>
+            <input 
+                type="number" 
+                id="num-letters" 
+                placeholder="e.g., 5" 
+                class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-center text-lg"
+                min="1"
+            >
+            <button id="submit-btn" class="mt-4 w-full bg-purple-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition duration-200">
+                Start Game
+            </button>
+        </div>
+
+        <!-- Step 2: Main game area, initially hidden -->
+        <div id="game-step-1" class="hidden">
+            <button id="reset-btn-1" class="absolute top-4 right-4 bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition duration-200">
+                Reset Game
+            </button>
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Playing the Game!</h2>
+            
+            <p class="text-gray-600 mb-4">
+                The secret word has <span id="word-length-display" class="font-bold text-purple-600"></span> letters.
+                Below is the alphabet table. Click the column numbers where the letters for the word can be found in their correct sequence.
+                <br><span id="selections-display-1" class="font-bold text-blue-600"></span>
+            </p>
+
+            <!-- Alphabet Table Container -->
+            <div id="alphabet-table-container" class="mb-6 overflow-x-auto">
+                <!-- Table will be injected here by JavaScript -->
+            </div>
+
+            <!-- Selection buttons for first step -->
+            <div id="selection-buttons-1" class="flex flex-col sm:flex-row justify-center gap-4 mt-6">
+                <button id="confirm-selection-btn-1" class="w-full sm:w-auto bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition duration-200">
+                    Confirm Selection
+                </button>
+                <button id="undo-selection-btn-1" class="w-full sm:w-auto bg-yellow-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 transition duration-200">
+                    Undo Last
+                </button>
+                <button id="clear-selection-btn-1" class="w-full sm:w-auto bg-gray-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition duration-200">
+                    Clear Selection
+                </button>
+            </div>
+        </div>
+
+        <!-- Step 3: First new table and new inputs, initially hidden -->
+        <div id="game-step-2" class="hidden">
+            <button id="reset-btn-2" class="absolute top-4 right-4 bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition duration-200">
+                Reset Game
+            </button>
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">First Guess Table</h2>
+            <p class="text-gray-600 mb-4">
+                Click the column numbers from this table where the letters for the word can be found in their correct sequence.
+                <br><span id="selections-display-2" class="font-bold text-blue-600"></span>
+            </p>
+            <div id="guess-table-container-1" class="mb-6 overflow-x-auto">
+                <!-- First new table will be injected here by JavaScript -->
+            </div>
+            <!-- Selection buttons for second step -->
+            <div id="selection-buttons-2" class="flex flex-col sm:flex-row justify-center gap-4 mt-6">
+                <button id="confirm-selection-btn-2" class="w-full sm:w-auto bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-200">
+                    Confirm Selection
+                </button>
+                <button id="undo-selection-btn-2" class="w-full sm:w-auto bg-yellow-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 transition duration-200">
+                    Undo Last
+                </button>
+                <button id="clear-selection-btn-2" class="w-full sm:w-auto bg-gray-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition duration-200">
+                    Clear Selection
+                </button>
+            </div>
+        </div>
+
+        <!-- Step 4: Final new table, initially hidden -->
+        <div id="game-step-3" class="hidden">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Final Table</h2>
+            <div id="guess-table-container-2" class="mb-6 overflow-x-auto">
+                <!-- Final table will be injected here by JavaScript -->
+            </div>
+            <div class="flex flex-col sm:flex-row justify-center gap-4 mt-6">
+                <button id="play-again-btn" class="w-full sm:w-auto bg-purple-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition duration-200">
+                    Play Again
+                </button>
+                <button id="reveal-btn" class="w-full sm:w-auto bg-yellow-400 text-gray-800 font-bold py-3 px-4 rounded-lg hover:bg-yellow-500 focus:outline-none focus:ring-2 focus-ring-yellow-500 focus:ring-offset-2 transition duration-200">
+                    Reveal Word
+                </button>
+            </div>
+        </div>
+
+        <!-- Message/Status Display Area -->
+        <div id="message-area" class="text-lg font-medium text-gray-700 mt-4"></div>
+    </div>
+
+    <!-- Modal for revealing the secret word -->
+    <div id="reveal-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <span id="modal-close" class="modal-close">&times;</span>
+            <h3 class="text-2xl font-bold text-gray-800 mb-4">The Secret Word Is:</h3>
+            <p id="secret-word-display" class="text-5xl font-extrabold text-purple-600 tracking-wider"></p>
+        </div>
+    </div>
+
+    <script>
+        // Game state variables
+        let numLetters = null;
+        let alphabetGrid = []; // To store the alphabet data as a 2D array
+        let guessGrid1 = []; // To store the data from the first generated table
+        let finalGrid = []; // To store the data from the final generated table
+        let selectedNumbers1 = []; // To store selected column numbers for step 1
+        let selectedNumbers2 = []; // To store selected column numbers for step 2
+
+        // Get references to DOM elements
+        const numLettersInput = document.getElementById('num-letters');
+        const submitBtn = document.getElementById('submit-btn');
+        const setupStep = document.getElementById('setup-step');
+        const gameStep1 = document.getElementById('game-step-1');
+        const gameStep2 = document.getElementById('game-step-2');
+        const gameStep3 = document.getElementById('game-step-3');
+        const resetBtn1 = document.getElementById('reset-btn-1');
+        const resetBtn2 = document.getElementById('reset-btn-2');
+        const playAgainBtn = document.getElementById('play-again-btn');
+        const revealBtn = document.getElementById('reveal-btn');
+        const revealModal = document.getElementById('reveal-modal');
+        const modalCloseBtn = document.getElementById('modal-close');
+        const secretWordDisplay = document.getElementById('secret-word-display');
+        const alphabetTableContainer = document.getElementById('alphabet-table-container');
+        const guessTableContainer1 = document.getElementById('guess-table-container-1');
+        const guessTableContainer2 = document.getElementById('guess-table-container-2');
+        const messageArea = document.getElementById('message-area');
+        const wordLengthDisplay = document.getElementById('word-length-display');
+        const confirmSelectionBtn1 = document.getElementById('confirm-selection-btn-1');
+        const confirmSelectionBtn2 = document.getElementById('confirm-selection-btn-2');
+        const undoSelectionBtn1 = document.getElementById('undo-selection-btn-1');
+        const undoSelectionBtn2 = document.getElementById('undo-selection-btn-2');
+        const clearSelectionBtn1 = document.getElementById('clear-selection-btn-1');
+        const clearSelectionBtn2 = document.getElementById('clear-selection-btn-2');
+        const selectionsDisplay1 = document.getElementById('selections-display-1');
+        const selectionsDisplay2 = document.getElementById('selections-display-2');
+
+        /**
+         * Resets the game to its initial state.
+         */
+        const resetGame = () => {
+            // Reset state variables
+            numLetters = null;
+            alphabetGrid = [];
+            guessGrid1 = [];
+            finalGrid = [];
+            selectedNumbers1 = [];
+            selectedNumbers2 = [];
+            
+            // Clear inputs
+            numLettersInput.value = '';
+
+            // Clear tables
+            alphabetTableContainer.innerHTML = '';
+            guessTableContainer1.innerHTML = '';
+            guessTableContainer2.innerHTML = '';
+            selectionsDisplay1.textContent = '';
+            selectionsDisplay2.textContent = '';
+
+            // Hide all game steps and show the initial setup
+            gameStep1.classList.add('hidden');
+            gameStep2.classList.add('hidden');
+            gameStep3.classList.add('hidden');
+            setupStep.classList.remove('hidden');
+
+            // Clear and reset message area
+            messageArea.textContent = "";
+            messageArea.classList.remove('text-red-600', 'text-green-600');
+            messageArea.classList.add('text-gray-700');
+        };
+
+        /**
+         * Dynamically creates and injects a table from a given grid of letters.
+         * @param {string[][]} grid - The 2D array of letters to build the table from.
+         * @param {HTMLElement} container - The DOM element to append the table to.
+         * @param {string} tableId - The ID for the new table element.
+         * @param {number} headers - The number of headers for the table.
+         * @param {boolean} isClickable - Flag to make headers clickable.
+         */
+        const createTableFromGrid = (grid, container, tableId, headers, isClickable = false) => {
+            let tableHtml = `<table id="${tableId}" class="w-full table-auto border-collapse border border-gray-400 rounded-lg"><thead><tr>`;
+            
+            // Create table headers
+            for (let i = 1; i <= headers; i++) {
+                const headerClass = isClickable ? 'clickable-header' : '';
+                tableHtml += `<th class="border border-gray-300 bg-gray-200 ${headerClass}">${i}</th>`;
+            }
+            tableHtml += `</tr></thead><tbody>`;
+
+            // Populate the table with the grid data
+            for (const row of grid) {
+                tableHtml += `<tr>`;
+                for (const cell of row) {
+                    tableHtml += `<td class="border border-gray-300 text-gray-800 font-bold">${cell}</td>`;
+                }
+                tableHtml += `</tr>`;
+            }
+
+            tableHtml += `</tbody></table>`;
+            container.innerHTML = tableHtml;
+
+            // Add event listeners to the headers if they are clickable
+            if (isClickable) {
+                const headerElements = container.querySelectorAll('th');
+                headerElements.forEach(header => {
+                    header.addEventListener('click', () => {
+                        const colNumber = parseInt(header.textContent);
+                        handleHeaderClick(colNumber, tableId);
+                    });
+                });
+            }
+        };
+
+        /**
+         * Updates the visual state of the selected headers.
+         * @param {number[]} selectedNumbers - The array of numbers to highlight.
+         * @param {string} tableId - The ID of the table to update.
+         */
+        const updateHeaderVisuals = (selectedNumbers, tableId) => {
+            const allHeaders = document.querySelectorAll(`#${tableId} th`);
+            // First, remove the selected class from all headers
+            allHeaders.forEach(header => {
+                header.classList.remove('selected-header');
+            });
+
+            // Then, add the selected class to the currently selected headers
+            selectedNumbers.forEach(number => {
+                const header = document.querySelector(`#${tableId} th:nth-child(${number})`);
+                if (header) {
+                    header.classList.add('selected-header');
+                }
+            });
+        };
+
+
+        /**
+         * Handles the click event on a table header.
+         * @param {number} colNumber - The column number that was clicked.
+         * @param {string} tableId - The ID of the table that was clicked.
+         */
+        const handleHeaderClick = (colNumber, tableId) => {
+            let selectedArray = tableId === 'alphabet-table' ? selectedNumbers1 : selectedNumbers2;
+            const displayElement = tableId === 'alphabet-table' ? selectionsDisplay1 : selectionsDisplay2;
+
+            if (selectedArray.length >= numLetters) {
+                messageArea.textContent = `You have already selected all ${numLetters} columns. Please clear your selection to try again.`;
+                messageArea.classList.remove('text-green-600');
+                messageArea.classList.add('text-red-600');
+                return;
+            }
+
+            // Add to the selected array without checking for duplicates
+            selectedArray.push(colNumber);
+
+            // Update the correct state array
+            if (tableId === 'alphabet-table') {
+                selectedNumbers1 = selectedArray;
+                updateHeaderVisuals(selectedNumbers1, tableId);
+            } else {
+                selectedNumbers2 = selectedArray;
+                updateHeaderVisuals(selectedNumbers2, tableId);
+            }
+
+            // Update the display to show the selection order
+            displayElement.textContent = `Selected: ${selectedArray.join(', ')}`;
+            messageArea.textContent = `Column ${colNumber} selected.`;
+            messageArea.classList.remove('text-red-600');
+            messageArea.classList.add('text-green-600');
+        };
+
+        /**
+         * Creates a new grid based on a source grid and an array of column numbers.
+         * @param {number[]} numbers - An array of column numbers provided by the user.
+         * @param {string[][]} sourceGrid - The 2D array to pull columns from.
+         * @returns {string[][]} - The new grid of letters.
+         */
+        const createNewGrid = (numbers, sourceGrid) => {
+            const newGrid = [];
+            const numRows = numbers.length;
+            const sourceCols = sourceGrid.length > 0 ? sourceGrid[0].length : 0;
+            const sourceRows = sourceGrid.length;
+
+            // Get columns from the sourceGrid and turn them into rows for the new grid
+            for (let i = 0; i < numRows; i++) {
+                const colIndex = numbers[i] - 1; // Adjust for 0-based array index
+                const newRow = [];
+                if (colIndex >= 0 && colIndex < sourceCols) {
+                    for (let j = 0; j < sourceRows; j++) {
+                        newRow.push(sourceGrid[j][colIndex]);
+                    }
+                }
+                newGrid.push(newRow);
+            }
+            return newGrid;
+        };
+
+        /**
+         * Creates and injects the alphabet table.
+         * @param {number} columns - The number of columns for the table.
+         * @returns {string[][]} - The alphabet grid as a 2D array.
+         */
+        const createAlphabetTable = (columns) => {
+            const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+            const grid = [];
+            let letterIndex = 0;
+            const numRows = Math.ceil(letters.length / columns);
+            for(let i = 0; i < numRows; i++){
+                const row = [];
+                for(let j = 0; j < columns; j++){
+                    const letter = letters[letterIndex] || '';
+                    row.push(letter);
+                    letterIndex++;
+                }
+                grid.push(row);
+            }
+            createTableFromGrid(grid, alphabetTableContainer, 'alphabet-table', columns, true);
+            return grid;
+        };
+
+        /**
+         * Extracts the secret word from the final grid based on the diagonal rule.
+         * @returns {string} The secret word.
+         */
+        const getSecretWord = () => {
+            let word = '';
+            // The word is the diagonal letters from column 1 row 2 to last column last row.
+            // In 0-indexed arrays, this is finalGrid[1][0], finalGrid[2][1], etc.
+            // The diagonal length is the number of letters.
+            for (let i = 0; i < numLetters; i++) {
+                if (i < finalGrid.length && i < finalGrid[i].length) {
+                    word += finalGrid[i][i]; // Diagonal from top-left to bottom-right
+                }
+            }
+            return word;
+        };
+
+        /**
+         * Undoes the last selected number for the current step.
+         * @param {number} step - The current game step (1 or 2).
+         */
+        const undoLastSelection = (step) => {
+            let selectedArray, displayElement, tableId;
+
+            if (step === 1) {
+                selectedArray = selectedNumbers1;
+                displayElement = selectionsDisplay1;
+                tableId = 'alphabet-table';
+            } else {
+                selectedArray = selectedNumbers2;
+                displayElement = selectionsDisplay2;
+                tableId = 'guess-table-1';
+            }
+
+            if (selectedArray.length > 0) {
+                selectedArray.pop();
+                displayElement.textContent = `Selected: ${selectedArray.join(', ')}`;
+                updateHeaderVisuals(selectedArray, tableId);
+                messageArea.textContent = "Last selection undone.";
+                messageArea.classList.remove('text-red-600');
+                messageArea.classList.add('text-green-600');
+            } else {
+                messageArea.textContent = "No selections to undo.";
+                messageArea.classList.remove('text-green-600');
+                messageArea.classList.add('text-red-600');
+            }
+        };
+
+        // Add event listeners for the reset/play again buttons
+        resetBtn1.addEventListener('click', resetGame);
+        resetBtn2.addEventListener('click', resetGame);
+        playAgainBtn.addEventListener('click', resetGame);
+
+        // Add event listener for the reveal button
+        revealBtn.addEventListener('click', () => {
+            const secretWord = getSecretWord();
+            if (secretWord) {
+                secretWordDisplay.textContent = secretWord;
+                revealModal.classList.remove('hidden');
+            } else {
+                messageArea.textContent = "Could not reveal the word. Please check your table inputs.";
+                messageArea.classList.remove('text-green-600');
+                messageArea.classList.add('text-red-600');
+            }
+        });
+
+        // Add event listener to close the modal
+        modalCloseBtn.addEventListener('click', () => {
+            revealModal.classList.add('hidden');
+        });
+
+        // Add event listener to the "Start Game" button
+        submitBtn.addEventListener('click', () => {
+            const inputValue = numLettersInput.value;
+
+            // Basic validation for the number of letters
+            if (!inputValue || isNaN(inputValue) || parseInt(inputValue) < 1) {
+                messageArea.textContent = "Please enter a valid number greater than 0.";
+                messageArea.classList.remove('text-green-600');
+                messageArea.classList.add('text-red-600');
+                return;
+            }
+
+            numLetters = parseInt(inputValue);
+            messageArea.textContent = `Great! Let the guessing begin!`;
+            messageArea.classList.remove('text-red-600');
+            messageArea.classList.add('text-green-600');
+
+            // Hide the setup step and show the main game step
+            setupStep.classList.add('hidden');
+            gameStep1.classList.remove('hidden');
+
+            wordLengthDisplay.textContent = numLetters;
+
+            // Create and store the alphabet table data
+            alphabetGrid = createAlphabetTable(numLetters);
+        });
+
+        // Add event listener for the first "Confirm Selection" button
+        confirmSelectionBtn1.addEventListener('click', () => {
+            if (selectedNumbers1.length !== numLetters) {
+                messageArea.textContent = `Please select exactly ${numLetters} columns. You have selected ${selectedNumbers1.length}.`;
+                messageArea.classList.remove('text-green-600');
+                messageArea.classList.add('text-red-600');
+                return;
+            }
+            
+            // Hide the first game step and show the second
+            gameStep1.classList.add('hidden');
+            gameStep2.classList.remove('hidden');
+            
+            messageArea.textContent = "First table generated successfully! Now select the columns for the final table.";
+            messageArea.classList.remove('text-red-600');
+            messageArea.classList.add('text-green-600');
+            
+            // Create and store the data for the first guess table
+            guessGrid1 = createNewGrid(selectedNumbers1, alphabetGrid);
+            const headers1 = alphabetGrid.length;
+            createTableFromGrid(guessGrid1, guessTableContainer1, 'guess-table-1', headers1, true);
+        });
+
+        // Add event listener for the first "Undo Last" button
+        undoSelectionBtn1.addEventListener('click', () => {
+            undoLastSelection(1);
+        });
+        
+        // Add event listener for the first "Clear Selection" button
+        clearSelectionBtn1.addEventListener('click', () => {
+            selectedNumbers1 = [];
+            selectionsDisplay1.textContent = '';
+            updateHeaderVisuals([], 'alphabet-table');
+            messageArea.textContent = "Selection cleared. Please choose your columns again.";
+            messageArea.classList.remove('text-green-600');
+            messageArea.classList.add('text-red-600');
+        });
+
+        // Add event listener for the second "Confirm Selection" button
+        confirmSelectionBtn2.addEventListener('click', () => {
+            if (selectedNumbers2.length !== numLetters) {
+                messageArea.textContent = `Please select exactly ${numLetters} columns. You have selected ${selectedNumbers2.length}.`;
+                messageArea.classList.remove('text-green-600');
+                messageArea.classList.add('text-red-600');
+                return;
+            }
+
+            // Hide the second game step and show the final table
+            gameStep2.classList.add('hidden');
+            gameStep3.classList.remove('hidden');
+
+            messageArea.textContent = "Final table generated! You can now guess the word or reveal it.";
+            messageArea.classList.remove('text-red-600');
+            messageArea.classList.add('text-green-600');
+
+            // Create the final table from the second set of numbers
+            finalGrid = createNewGrid(selectedNumbers2, guessGrid1);
+            const headers3 = finalGrid.length > 0 ? finalGrid[0].length : 0;
+            createTableFromGrid(finalGrid, guessTableContainer2, 'guess-table-2', headers3);
+        });
+
+        // Add event listener for the second "Undo Last" button
+        undoSelectionBtn2.addEventListener('click', () => {
+            undoLastSelection(2);
+        });
+        
+        // Add event listener for the second "Clear Selection" button
+        clearSelectionBtn2.addEventListener('click', () => {
+            selectedNumbers2 = [];
+            selectionsDisplay2.textContent = '';
+            updateHeaderVisuals([], 'guess-table-1');
+            messageArea.textContent = "Selection cleared. Please choose your columns again.";
+            messageArea.classList.remove('text-green-600');
+            messageArea.classList.add('text-red-600');
+        });
+
+    </script>
+</body>
+</html>
