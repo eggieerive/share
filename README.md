@@ -1,7 +1,7 @@
 A simple game of guessing a word from a number of letters.  
 Follow along the game steps; the instructions are provided.
 
-Gemini Ai Prompts:
+Gemini Ai Prompts and Replies:
 
 - start - 
 
