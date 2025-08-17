@@ -3,6 +3,8 @@ Follow along the game steps; the instructions are provided.
 
 Gemini Ai Prompts:
 
+- start - 
+
 let's build a 'guess the word game'. i will tell you the steps.
 
 
@@ -213,3 +215,5 @@ The game's title is now Guess The Word Game and the subtitle has been removed. E
 
 Would you like to add an input field for the user to try and guess the word themselves before revealing it?
 
+
+- end -
