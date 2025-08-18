@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Word Guessing Table Game</title>
+  <style>
+    :root{
+      --bg:#0b1020; --panel:#121a33; --panel-2:#0f1730; --text:#e8ecff; --muted:#a8b2d1; --accent:#6ea8ff; --good:#22c55e; --bad:#ef4444;
+      --grid:#243457; --chip:#1f2a4a; --ring:#284078; --shadow: 0 10px 25px rgba(0,0,0,.35);
+    }
+    html,body{height:100%;}
+    body{margin:0;background:radial-gradient(1200px 800px at 20% -10%, #1a2550 0%, #0b1020 45%) fixed, var(--bg);color:var(--text);font:16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";}
+    .wrap{max-width:1100px;margin:24px auto;padding:24px;}
+    .header{display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+    h1{margin:0;font-size:clamp(20px,4vw,28px);letter-spacing:.3px}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.015));border:1px solid rgba(255,255,255,.06);box-shadow:var(--shadow);border-radius:16px;padding:18px}
+    .row{display:grid;gap:14px}
+    @media (min-width:960px){.row.two{grid-template-columns:1.2fr .8fr}}
+    .controls{display:grid;grid-template-columns:repeat(12,1fr);gap:12px;align-items:end}
+    .field{grid-column:span 12}
+    @media(min-width:720px){.field.md-6{grid-column:span 6}}
+    @media(min-width:720px){.field.md-4{grid-column:span 4}}
+    label{display:block;font-weight:600;color:var(--muted);margin:0 0 6px 2px;font-size:13px}
+    input,button,textarea{font:inherit}
+    input[type="number"], input[type="text"]{width:100%;box-sizing:border-box;background:var(--panel-2);color:var(--text);border:1px solid var(--ring);border-radius:12px;padding:10px 12px;outline:none}
+    input::placeholder{color:#8fa0c9}
+    .btn{background:linear-gradient(180deg, #3b82f6, #2563eb);border:none;color:white;border-radius:12px;padding:10px 14px;cursor:pointer;font-weight:700;box-shadow:0 6px 18px rgba(37,99,235,.35);transition:.15s}
+    .btn.secondary{background:linear-gradient(180deg, #64748b, #475569);box-shadow:0 6px 18px rgba(71,85,105,.35)}
+    .btn.ghost{background:transparent;border:1px solid var(--ring);color:var(--text);box-shadow:none}
+    .btn:disabled{opacity:.5;cursor:not-allowed}
+    .hint{font-size:12px;color:var(--muted)}
+
+    .grid{--cols:6;display:grid;grid-template-columns:repeat(var(--cols), minmax(24px,1fr));gap:6px;margin-top:8px}
+    .cell{border:1px solid var(--grid);background:rgba(255,255,255,.03);border-radius:8px;padding:8px;text-align:center;min-height:36px; display: flex; align-items: center; justify-content: center;}
+    .head{font-weight:700;color:#c8d6ff;background:rgba(110,168,255,.08);}
+    .head-button{
+      font-weight:700;
+      color:#c8d6ff;
+      background:rgba(110,168,255,.08);
+      border:1px solid var(--grid);
+      border-radius:8px;
+      padding:8px;
+      text-align:center;
+      min-height:36px;
+      cursor:pointer;
+      transition: background 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .head-button:hover {
+      background: rgba(110,168,255,.2);
+    }
+    .seq input[readonly]:hover {
+      cursor: pointer;
+      background: rgba(255,255,255,.05);
+    }
+
+
+    .chips{display:flex;flex-wrap:wrap;gap:6px}
+    .chip{background:var(--chip);border:1px solid var(--ring);padding:6px 10px;border-radius:999px;font-weight:600}
+
+    .seq{display:grid;grid-template-columns:repeat(auto-fit,minmax(36px,1fr));gap:6px}
+    .seq input{padding:8px 6px;text-align:center}
+
+    .banner{background:linear-gradient(90deg, rgba(34,197,94,.14), rgba(59,130,246,.14));border:1px solid rgba(110,168,255,.3);padding:12px 14px;border-radius:12px}
+    .warn{background:linear-gradient(90deg, rgba(239,68,68,.12), rgba(251,191,36,.12));border-color:rgba(251,191,36,.35)}
+
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace}
+    .big{font-size:clamp(16px, 3.6vw, 22px);font-weight:800}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <h1>Word Guessing Table Game</h1>
+      <div class="chips">
+        <span class="chip">Step 1: Build Table</span>
+        <span class="chip">Step 2: Sequence #1</span>
+        <span class="chip">Step 3: Sequence #2</span>
+        <span class="chip">Reveal!</span>
+      </div>
+    </div>
+
+    <div class="row two">
+      <section class="card">
+        <div class="controls">
+          <div class="field md-4">
+            <label>Word Length (letters)</label>
+            <input id="len" type="number" min="2" max="26" value="6" />
+            <div class="hint">Only the length is announced by the chooser.</div>
+          </div>
+          <div class="field md-4">
+            <label>Secret Word (optional – helper)</label>
+            <input id="secret" type="text" placeholder="e.g. apples" />
+            <div class="hint">Use to auto-fill sequences for practice/demo. Not required during real play.</div>
+          </div>
+          <div class="field md-4" style="display:flex;gap:8px;align-items:end">
+            <button class="btn" id="build">Build Alphabet Table</button>
+            <button class="btn secondary" id="reset">Reset</button>
+          </div>
+        </div>
+
+        <div id="t1Box" style="margin-top:14px;display:none">
+          <div class="chips" style="margin-bottom:8px"><span class="chip">Table 1 – Alphabet dealt across <span id="colCount"></span> columns</span></div>
+          <div id="t1" class="grid"></div>
+          <div class="field" style="margin-top:12px">
+            <label>Sequence #1 (column numbers for each letter)</label>
+            <div id="seq1" class="seq"></div>
+            <div class="hint">For each letter of the secret word, look at Table 1 and enter the column number where that letter appears. You can now click on the column number in the table to fill the sequence input. Click an input to clear it.</div>
+          </div>
+          <div style="margin-top:10px;display:flex;gap:8px">
+            <button class="btn" id="build2" disabled>Build Row-Vector Table</button>
+          </div>
+        </div>
+
+        <div id="t2Box" style="margin-top:14px;display:none">
+          <div class="chips" style="margin-bottom:8px"><span class="chip">Table 2 – Row vectors (built from Sequence #1)</span></div>
+          <div id="t2" class="grid"></div>
+          <div class="field" style="margin-top:12px">
+            <label>Sequence #2 (row numbers for each letter)</label>
+            <div id="seq2" class="seq"></div>
+            <div class="hint">For each letter of the secret word, enter the <strong>row number</strong> (1 = first row, 2 = second, …) where it appears in Table 1. You can now click on the row number in the table to fill the sequence input. Click an input to clear it.</div>
+          </div>
+          <div style="margin-top:10px;display:flex;gap:8px">
+            <button class="btn" id="build3" disabled>Build Final Table</button>
+          </div>
+        </div>
+
+        <div id="t3Box" style="margin-top:14px;display:none">
+          <div class="chips" style="margin-bottom:8px"><span class="chip">Final Table – Columns are Table‑2 rows ordered by Sequence #2</span></div>
+          <div id="t3" class="grid"></div>
+          <div class="banner" style="margin-top:12px">
+            <div class="big mono">Diagonal Reveal: <span id="reveal"></span></div>
+            <div class="hint">Read from top‑left to bottom‑right, limited to the word length.</div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="card">
+        <h3 style="margin-top:0">How to Play</h3>
+        <ol style="margin:8px 0 0 18px; padding:0 0 0 4px">
+          <li><strong>Chooser</strong> thinks of a word and only tells the <em>length</em>.</li>
+          <li><strong>Build Table 1:</strong> Letters a→z are dealt across that many columns.</li>
+          <li><strong>Sequence #1:</strong> For each secret letter, enter the <em>column</em> where it appears in Table 1. You can click the column number to enter it in the sequence.</li>
+          <li><strong>Build Table 2:</strong> The app makes one row‑vector per Table‑1 row by pulling the letters from those columns in order.</li>
+          <li><strong>Sequence #2:</strong> For each secret letter, enter the <em>row</em> where it sits in Table 1 (1 = a‑row, 2 = g‑row, 3 = m‑row, …). You can click the row number to enter it in the sequence.</li>
+          <li><strong>Build Final Table:</strong> The row‑vectors are arranged as columns using Sequence #2. The <em>diagonal</em> now spells the word.</li>
+        </ol>
+        <div class="banner warn" style="margin-top:12px">
+          Tip: Enter the secret word in the helper field to auto‑fill both sequences for practice (e.g., <em>apples</em> → Seq1 = 1,4,4,6,5,1 and Seq2 = 1,3,3,2,1,4).
+        </div>
+        <div style="margin-top:12px" class="hint">This implements the exact flow from your example and guarantees the diagonal reveal after two sequences.</div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    // Define a constant array for the alphabet
+    const letters = Array.from({length: 26}, (_, i) => String.fromCharCode(97 + i));
+
+    // A utility function to easily get an element by its ID
+    const el = id => document.getElementById(id);
+
+    /**
+     * Finds the next empty input in a sequence and fills it.
+     * @param {Array<HTMLInputElement>} inputs The array of input elements.
+     * @param {number} value The number to fill into the input.
+     */
+    function fillNextEmptyInput(inputs, value) {
+      for (let i = 0; i < inputs.length; i++) {
+        if (inputs[i].value === '' || inputs[i].value === undefined || inputs[i].value === null) {
+          inputs[i].value = value;
+          break;
+        }
+      }
+    }
+
+    /**
+     * Builds the initial alphabet table (Table 1).
+     * Letters a-z are filled into a grid with a specified number of columns.
+     * @param {number} n The number of columns.
+     * @returns {Array<Array<string>>} A 2D array representing the table.
+     */
+    function buildTable1(n) {
+      const rows = Math.ceil(26 / n);
+      const t = Array.from({length: rows}, () => Array(n).fill(""));
+      letters.forEach((ch, idx) => {
+        t[Math.floor(idx / n)][idx % n] = ch;
+      });
+      return t;
+    }
+
+    /**
+     * Renders a 2D array as an HTML grid with column headers.
+     * The grid columns are set using a CSS custom property.
+     * @param {HTMLElement} container The DOM element to render the grid inside.
+     * @param {Array<Array<string>>} table The 2D array data to render.
+     */
+    function renderGrid(container, table) {
+      container.innerHTML = "";
+      // Ensure there's a table to work with and set the CSS grid columns.
+      if (!table || table.length === 0 || table[0].length === 0) {
+        return;
+      }
+      container.style.setProperty('--cols', table[0].length);
+
+      // Render the column headers (1, 2, 3...)
+      for (let c = 0; c < table[0].length; c++) {
+        const btn = document.createElement('button');
+        btn.className = 'head-button';
+        btn.textContent = (c + 1);
+        btn.addEventListener('click', () => {
+          fillNextEmptyInput(seq1Inputs, c + 1);
+          onSeqChanged();
+        });
+        container.appendChild(btn);
+      }
+      
+      // Render the table cells
+      const rows = table.length;
+      const cols = table[0].length;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const d = document.createElement('div');
+          d.className = 'cell';
+          d.textContent = table[r][c] || '';
+          container.appendChild(d);
+        }
+      }
+    }
+
+    /**
+     * Renders Table 2 with row headers only.
+     * @param {HTMLElement} container The DOM element to render the grid inside.
+     * @param {Array<Array<string>>} table The 2D array data to render.
+     */
+    function renderT2Grid(container, table) {
+      container.innerHTML = "";
+      if (!table || table.length === 0 || table[0].length === 0) {
+        return;
+      }
+      // Add one more column for the row headers.
+      container.style.setProperty('--cols', table[0].length + 1);
+      
+      // Render the table cells with row headers, without a header row at the top
+      const rows = table.length;
+      const cols = table[0].length;
+      for (let r = 0; r < rows; r++) {
+        // Add the row header cell (1, 2, 3...)
+        const rowHeader = document.createElement('button');
+        rowHeader.className = 'head-button';
+        rowHeader.textContent = (r + 1);
+        rowHeader.addEventListener('click', () => {
+          fillNextEmptyInput(seq2Inputs, r + 1);
+          onSeq2Changed();
+        });
+        container.appendChild(rowHeader);
+        
+        for (let c = 0; c < cols; c++) {
+          const d = document.createElement('div');
+          d.className = 'cell';
+          d.textContent = table[r][c] || '';
+          container.appendChild(d);
+        }
+      }
+    }
+
+    /**
+     * Renders the Final Table (Table 3) with no headers.
+     * @param {HTMLElement} container The DOM element to render the grid inside.
+     * @param {Array<Array<string>>} table The 2D array data to render.
+     */
+    function renderFinalTable(container, table) {
+      container.innerHTML = "";
+      if (!table || table.length === 0 || table[0].length === 0) {
+        return;
+      }
+      container.style.setProperty('--cols', table[0].length);
+      const rows = table.length;
+      const cols = table[0].length;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const d = document.createElement('div');
+          d.className = 'cell';
+          d.textContent = table[r][c] || '';
+          container.appendChild(d);
+        }
+      }
+    }
+
+    /**
+     * Creates input fields for a sequence based on word length.
+     * @param {HTMLElement} container The DOM element to append inputs to.
+     * @param {number} n The number of inputs to create (word length).
+     * @param {Function} onChange A callback function for input change events.
+     * @returns {Array<HTMLInputElement>} An array of the created input elements.
+     */
+    function makeSeqInputs(container, n, onChange) {
+      container.innerHTML = '';
+      const inputs = [];
+      for (let i = 0; i < n; i++) {
+        const inp = document.createElement('input');
+        inp.type = 'number';
+        inp.min = '1';
+        inp.step = '1';
+        inp.placeholder = String(i + 1);
+        inp.readOnly = true; // Make inputs read-only since we'll click on the table headers
+        inp.addEventListener('input', () => {
+          if (onChange) onChange();
+        });
+        // Add click event for undo/clear functionality
+        inp.addEventListener('click', () => {
+          if (inp.value !== '') {
+            inp.value = '';
+            onChange();
+          }
+        });
+        container.appendChild(inp);
+        inputs.push(inp);
+      }
+      return inputs;
+    }
+
+    /**
+     * Generates Sequence #1 (column numbers) from a secret word.
+     * @param {string} word The secret word.
+     * @param {number} n The number of columns in Table 1.
+     * @returns {Array<number>} An array of column numbers.
+     */
+    function seqFromWord_seq1(word, n) {
+      const seq = [];
+      for (const ch of word) {
+        const idx = letters.indexOf(ch);
+        if (idx < 0) {
+          seq.push('');
+          continue;
+        }
+        seq.push((idx % n) + 1);
+      }
+      return seq;
+    }
+
+    /**
+     * Generates Sequence #2 (row numbers) from a secret word.
+     * @param {string} word The secret word.
+     * @param {number} n The number of columns in Table 1.
+     * @returns {Array<number>} An array of row numbers.
+     */
+    function seqFromWord_seq2(word, n) {
+      const rows = Math.ceil(26 / n);
+      const seq = [];
+      for (const ch of word) {
+        const idx = letters.indexOf(ch);
+        if (idx < 0) {
+          seq.push('');
+          continue;
+        }
+        seq.push(Math.floor(idx / n) + 1);
+      }
+      return seq;
+    }
+
+    /**
+     * Builds the "row-vector" table (Table 2) from Table 1 and Sequence #1.
+     * It creates a new table where each row is a vector of characters pulled
+     * from the columns of Table 1 specified by Sequence #1.
+     * @param {Array<Array<string>>} table1 The alphabet table.
+     * @param {Array<number>} seq1 The sequence of column numbers.
+     * @returns {Array<Array<string>>} The new table of row-vectors.
+     */
+    function buildRowVectors(table1, seq1) {
+      const rows = table1.length;
+      const n = seq1.length;
+      const vectors = Array.from({length: rows}, () => Array(n).fill(''));
+      for (let r = 0; r < rows; r++) {
+        for (let i = 0; i < n; i++) {
+          const col = (seq1[i] || 0) - 1;
+          vectors[r][i] = (col >= 0 && col < table1[0].length) ? (table1[r][col] || '') : '';
+        }
+      }
+      return vectors; // returns a table of size (num_rows_in_T1) x (word_length)
+    }
+
+    /**
+     * Builds the final table (Table 3) by arranging the row-vectors
+     * from Table 2 as columns, ordered by Sequence #2.
+     * @param {Array<Array<string>>} rowVectors Table 2.
+     * @param {Array<number>} seq2 The sequence of row numbers.
+     * @returns {Array<Array<string>>} The final table.
+     */
+    function buildFinalTable(rowVectors, seq2) {
+      const n = seq2.length;
+      const rows = rowVectors[0]?.length || 0; // The number of rows in the final table is the word length.
+      const final = Array.from({length: rows}, () => Array(n).fill(''));
+      for (let c = 0; c < n; c++) {
+        const rIndex = (seq2[c] || 0) - 1; // get the row vector to use as this column
+        const vec = rowVectors[rIndex] || Array(n).fill('');
+        for (let r = 0; r < rows; r++) {
+          final[r][c] = vec[r] || ''; // fill the column with the vector's content
+        }
+      }
+      return final;
+    }
+
+    /**
+     * Retrieves the diagonal word from the final table.
+     * @param {Array<Array<string>>} table The final table.
+     * @param {number} length The length of the secret word.
+     * @returns {string} The diagonal word.
+     */
+    function diagonalWord(table, length) {
+      const rows = table.length;
+      const cols = table[0]?.length || 0;
+      let out = '';
+      for (let i = 0; i < Math.min(length, rows, cols); i++) {
+        out += table[i][i] || '';
+      }
+      return out;
+    }
+
+    // UI and event handling logic
+    const lenEl = el('len');
+    const secretEl = el('secret');
+    const t1Box = el('t1Box');
+    const t2Box = el('t2Box');
+    const t3Box = el('t3Box');
+    const t1El = el('t1');
+    const t2El = el('t2');
+    const t3El = el('t3');
+    const buildBtn = el('build');
+    const build2Btn = el('build2');
+    const build3Btn = el('build3');
+    const resetBtn = el('reset');
+
+    let seq1Inputs = [];
+    let seq2Inputs = [];
+    let table1 = null, rowVectors = null, finalTable = null;
+
+    /**
+     * Gets the values from a sequence of input fields.
+     * @param {Array<HTMLInputElement>} inputs The array of input elements.
+     * @returns {Array<number|string>} An array of parsed numbers or empty strings.
+     */
+    function getSeq(inputs) {
+      return inputs.map(inp => {
+        const v = parseInt(inp.value, 10);
+        return Number.isFinite(v) ? v : '';
+      });
+    }
+
+    /**
+     * Checks if all inputs in an array are valid numbers.
+     * @param {Array<number|string>} arr The array of values.
+     * @returns {boolean} True if all values are finite numbers.
+     */
+    function validateFilled(arr) {
+      return arr.length > 0 && arr.every(v => Number.isFinite(v) && v > 0);
+    }
+
+    /**
+     * Automatically fills the sequence inputs using the secret word helper.
+     */
+    function autofillFromWord() {
+      const word = (secretEl.value || '').trim().toLowerCase();
+      const n = parseInt(lenEl.value, 10);
+      if (!word || !n) return;
+      if (word.length !== n) return;
+      const s1 = seqFromWord_seq1(word, n);
+      const s2 = seqFromWord_seq2(word, n);
+      seq1Inputs.forEach((inp, i) => inp.value = s1[i] ?? '');
+      seq2Inputs.forEach((inp, i) => inp.value = s2[i] ?? '');
+      onSeqChanged();
+      onSeq2Changed();
+    }
+
+    /**
+     * Event handler for changes in Sequence #1 inputs.
+     * Enables or disables the "Build Row-Vector Table" button.
+     */
+    function onSeqChanged() {
+      const s1 = getSeq(seq1Inputs);
+      build2Btn.disabled = !validateFilled(s1);
+    }
+
+    /**
+     * Event handler for changes in Sequence #2 inputs.
+     * Enables or disables the "Build Final Table" button.
+     */
+    function onSeq2Changed() {
+      const s2 = getSeq(seq2Inputs);
+      build3Btn.disabled = !validateFilled(s2);
+    }
+
+    // Event listeners for UI buttons
+    buildBtn.addEventListener('click', () => {
+      const n = Math.max(2, Math.min(26, parseInt(lenEl.value, 10) || 0));
+      lenEl.value = n;
+      table1 = buildTable1(n);
+      el('colCount').textContent = n;
+      renderGrid(t1El, table1);
+      t1Box.style.display = '';
+      // Create new sequence inputs based on word length
+      seq1Inputs = makeSeqInputs(el('seq1'), n, onSeqChanged);
+      seq2Inputs = makeSeqInputs(el('seq2'), n, onSeq2Changed);
+      build2Btn.disabled = true;
+      build3Btn.disabled = true;
+      t2Box.style.display = 'none';
+      t3Box.style.display = 'none';
+      if (secretEl.value) autofillFromWord();
+    });
+
+    el('build2').addEventListener('click', () => {
+      const s1 = getSeq(seq1Inputs);
+      if (!validateFilled(s1) || !table1) return;
+      rowVectors = buildRowVectors(table1, s1);
+      // Use the new rendering function for Table 2
+      renderT2Grid(t2El, rowVectors);
+      t2Box.style.display = '';
+      if (secretEl.value) autofillFromWord();
+    });
+
+    el('build3').addEventListener('click', () => {
+      const s2 = getSeq(seq2Inputs);
+      if (!validateFilled(s2) || !rowVectors) return;
+      finalTable = buildFinalTable(rowVectors, s2);
+      // Use the new rendering function for the Final Table
+      renderFinalTable(t3El, finalTable);
+      t3Box.style.display = '';
+      const n = parseInt(lenEl.value, 10) || 0;
+      el('reveal').textContent = diagonalWord(finalTable, n);
+    });
+
+    secretEl.addEventListener('input', () => {
+      autofillFromWord();
+    });
+
+    resetBtn.addEventListener('click', () => {
+      secretEl.value = '';
+      t1Box.style.display = 'none';
+      t2Box.style.display = 'none';
+      t3Box.style.display = 'none';
+      el('seq1').innerHTML = '';
+      el('seq2').innerHTML = '';
+      t1El.innerHTML = '';
+      t2El.innerHTML = '';
+      t3El.innerHTML = '';
+      build2Btn.disabled = true;
+      build3Btn.disabled = true;
+    });
+
+    // Preload demo state for convenience on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      lenEl.value = 6;
+      secretEl.value = 'apples';
+    });
+  </script>
+</body>
+</html>
